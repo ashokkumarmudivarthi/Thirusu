@@ -3,23 +3,30 @@ import { useState } from 'react'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
 
-export default function ProductCard({ product, menuColor = '#FF6B35' }) {
+export default function ProductCard({ product, menuColor = '#FF6B35', onProductClick }) {
   const [isHovered, setIsHovered] = useState(false)
   const [quantity, setQuantity] = useState(1)
+  const [selectedSize, setSelectedSize] = useState(product.sizes?.[1] || null) // Default to 500ml (middle option)
   const [showSuccess, setShowSuccess] = useState(false)
   const { addToCart } = useCart()
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist()
   
   const isFavorite = isInWishlist(product.id)
 
-  const handleAddToCart = () => {
-    addToCart(product, quantity)
+  // Get current price and details based on selected size
+  const currentPrice = selectedSize ? selectedSize.price : product.price
+  const displayProduct = selectedSize ? { ...product, ...selectedSize, price: selectedSize.price } : product
+
+  const handleAddToCart = (e) => {
+    e.stopPropagation()
+    addToCart(displayProduct, quantity)
     setShowSuccess(true)
     setTimeout(() => setShowSuccess(false), 2000)
     setQuantity(1)
   }
 
-  const handleToggleWishlist = () => {
+  const handleToggleWishlist = (e) => {
+    e.stopPropagation()
     if (isFavorite) {
       removeFromWishlist(product.id)
     } else {
@@ -27,9 +34,16 @@ export default function ProductCard({ product, menuColor = '#FF6B35' }) {
     }
   }
 
+  const handleCardClick = () => {
+    if (onProductClick) {
+      onProductClick(product)
+    }
+  }
+
   return (
     <div
-      className="group relative bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
+      onClick={handleCardClick}
+      className="group relative bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 cursor-pointer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -78,13 +92,51 @@ export default function ProductCard({ product, menuColor = '#FF6B35' }) {
           {product.short}
         </p>
 
+        {/* Size Selector */}
+        {product.sizes && product.sizes.length > 0 && (
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-gray-700 mb-2">Size:</p>
+            <div className="flex gap-2">
+              {product.sizes.map((sizeOption, index) => (
+                <button
+                  key={index}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedSize(sizeOption)
+                  }}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                    selectedSize?.size === sizeOption.size
+                      ? 'ring-2 shadow-md scale-105'
+                      : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                  style={{
+                    backgroundColor: selectedSize?.size === sizeOption.size ? `${menuColor}20` : undefined,
+                    color: selectedSize?.size === sizeOption.size ? menuColor : undefined,
+                    ringColor: selectedSize?.size === sizeOption.size ? menuColor : undefined,
+                  }}
+                >
+                  {sizeOption.size}
+                </button>
+              ))}
+            </div>
+            {/* Calories Info */}
+            {selectedSize && (
+              <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">
+                <span>🔥 {selectedSize.calories} cal</span>
+                <span>•</span>
+                <span>💪 {selectedSize.protein}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Price Section */}
         <div className="flex items-baseline gap-2 mb-4">
           <span className="text-2xl font-bold" style={{ color: menuColor }}>
-            ₹{product.price}
+            ₹{currentPrice}
           </span>
           <span className="text-sm text-gray-500 line-through">
-            ₹{Math.round(product.price * 1.2)}
+            ₹{Math.round(currentPrice * 1.2)}
           </span>
         </div>
 
@@ -93,7 +145,10 @@ export default function ProductCard({ product, menuColor = '#FF6B35' }) {
           <span className="text-sm font-semibold text-gray-700">Quantity:</span>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              onClick={(e) => {
+                e.stopPropagation()
+                setQuantity(Math.max(1, quantity - 1))
+              }}
               className="p-1 rounded-md border-2 hover:bg-gray-100 transition-colors"
               style={{ borderColor: menuColor + '40' }}
             >
@@ -101,7 +156,10 @@ export default function ProductCard({ product, menuColor = '#FF6B35' }) {
             </button>
             <span className="w-10 text-center font-bold text-lg">{quantity}</span>
             <button
-              onClick={() => setQuantity(quantity + 1)}
+              onClick={(e) => {
+                e.stopPropagation()
+                setQuantity(quantity + 1)
+              }}
               className="p-1 rounded-md border-2 hover:bg-gray-100 transition-colors"
               style={{ borderColor: menuColor + '40' }}
             >

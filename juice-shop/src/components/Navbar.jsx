@@ -24,13 +24,13 @@ export default function Navbar({
   const navigate = useNavigate()
 
   const menuItems = [
-    { label: 'Shop', key: 'Shop' },
-    { label: 'Cleanses', key: 'Cleanses' },
-    { label: 'Meal Plans', key: 'Meal Plans' },
-    { label: 'About Us', key: 'About Us' },
+    { label: 'Fresh Bar', key: 'Fresh Bar' },
+    { label: 'Reset', key: 'Reset' },
+    { label: 'Thrive', key: 'Thrive' },
+    { label: 'Our Story', key: 'Our Story' },
   ]
 
-  const hoverMenus = ['Shop', 'Cleanses', 'Meal Plans']
+  const hoverMenus = ['Fresh Bar', 'Reset', 'Thrive']
 
   const handleDesktopClick = (itemKey) => {
     if (hoverMenus.includes(itemKey)) {

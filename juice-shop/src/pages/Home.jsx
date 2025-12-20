@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import TopScroll from '../sections/TopScroll'
 import Navbar from '../components/Navbar'
 import HeroShowcase from '../sections/HeroShowcase'
+import SectionHero from '../components/SectionHero'
 import ShopCategoryBar from '../sections/ShopCategoryBar'
 import ProductGrid from '../sections/ProductGrid'
 import HealthJourney from '../sections/HealthJourney'
@@ -10,26 +11,35 @@ import WhySection from '../sections/WhySection'
 import Footer from '../components/Footer'
 import Cart from './Cart'
 import SearchModal from '../components/SearchModal'
+import ProductDetail from '../components/ProductDetail'
+import PageTransition from '../components/PageTransition'
 import { products } from '../utils/products'
+import { sectionHeroConfig, sectionHeroGradients } from '../utils/sectionHeroConfig'
 
 export default function Home() {
   const [activePrimary, setActivePrimary] = useState('Home')
   const [activeShopItem, setActiveShopItem] = useState(null)
-  const [activeCategory, setActiveCategory] = useState('All')
+  const [activeCategory, setActiveCategory] = useState('All Blends')
+  const [activeFlavor, setActiveFlavor] = useState(null) // For flavor-level filtering
+  const [showFlavorCategories, setShowFlavorCategories] = useState(false) // Show flavors instead of main categories
   const [showLeftList, setShowLeftList] = useState(false) // controls shop section visibility
   const [isHovered, setIsHovered] = useState(false)
   const [hoveredMenu, setHoveredMenu] = useState(null)
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0) // for auto-slideshow
   const [showCart, setShowCart] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
+  const [isCompactMode, setIsCompactMode] = useState(false) // Compact category bar on scroll
+  const [selectedProduct, setSelectedProduct] = useState(null) // Product detail modal
+  const [showTransition, setShowTransition] = useState(false) // Page transition animation
+  const [transitionColor, setTransitionColor] = useState('#FF6B35') // Transition color
   const shopSectionRef = useRef(null)
   const hoverTimeoutRef = useRef(null)
 
   const menuColors = {
-    Shop: '#FF6B35',
-    Cleanses: '#00A86B',
-    'Meal Plans': '#8B4513',
-    'About Us': '#4169E1',
+    'Fresh Bar': '#FF6B35',
+    'Reset': '#00A86B',
+    'Thrive': '#8B4513',
+    'Our Story': '#4169E1',
   }
 
   const heroConfigs = {
@@ -53,71 +63,71 @@ export default function Home() {
         image: '/assets/hero/hero-3.png',
       },
     ],
-    Shop: [
+    'Fresh Bar': [
       {
-        key: 'All',
-        title: 'Shop All Juices',
+        key: 'All Blends',
+        title: 'All Fresh Blends',
         description:
           'Discover our complete collection of fresh, cold-pressed juices.',
         image: '/assets/hero/shop-all.png',
       },
       {
-        key: 'Detox',
-        title: 'Detox Cleanses',
+        key: 'Detox Elixirs',
+        title: 'Detox Elixirs',
         description: 'Reset your body with nutrient-dense detox juices.',
         image: '/assets/hero/shop-detox.png',
       },
       {
-        key: 'Smoothies',
-        title: 'Protein Smoothies',
+        key: 'Power Smoothies',
+        title: 'Power Smoothies',
         description:
           'Creamy, filling smoothies packed with protein and nutrients.',
         image: '/assets/hero/shop-smoothies.png',
       },
     ],
-    Cleanses: [
+    'Reset': [
       {
-        key: '3-Day',
-        title: '3-Day Cleanse',
-        description: 'Quick reset with our 3-day cleanse program.',
+        key: 'Quick Reset',
+        title: 'Quick Reset Program',
+        description: 'Fast-track your wellness with our 3-day reset.',
         image: '/assets/hero/cleanse-3day.png',
       },
       {
-        key: '5-Day',
-        title: '5-Day Cleanse',
-        description: 'Deep detox with our 5-day cleanse program.',
+        key: 'Deep Cleanse',
+        title: 'Deep Cleanse Program',
+        description: 'Intensive purification with our 5-day deep cleanse.',
         image: '/assets/hero/cleanse-5day.png',
       },
       {
-        key: '7-Day',
-        title: '7-Day Cleanse',
-        description: 'Complete body reset with our 7-day cleanse program.',
+        key: 'Total Reboot',
+        title: 'Total Reboot Program',
+        description: 'Complete transformation with our 7-day total reboot.',
         image: '/assets/hero/cleanse-7day.png',
       },
     ],
-    'Meal Plans': [
+    'Thrive': [
       {
-        key: 'Starter',
-        title: 'Starter Plan',
+        key: "Beginner's Path",
+        title: "Beginner's Path",
         description:
           'Perfect for beginners - fresh juices with simple meals.',
         image: '/assets/hero/meal-starter.png',
       },
       {
-        key: 'Premium',
-        title: 'Premium Plan',
+        key: 'Premium Balance',
+        title: 'Premium Balance',
         description: 'Advanced nutrition - curated juices and organic meals.',
         image: '/assets/hero/meal-premium.png',
       },
       {
-        key: 'Elite',
-        title: 'Elite Plan',
+        key: 'Elite Wellness',
+        title: 'Elite Wellness',
         description:
           'Ultimate wellness - personalized juices and gourmet meals.',
         image: '/assets/hero/meal-elite.png',
       },
     ],
-    'About Us': [
+    'Our Story': [
       {
         key: 'default',
         title: 'Our Story',
@@ -128,16 +138,16 @@ export default function Home() {
   }
 
   const menuSubItems = {
-    Shop: ['All', 'Detox', 'Smoothies'],
-    Cleanses: ['3-Day Cleanse', '5-Day Cleanse', '7-Day Cleanse'],
-    'Meal Plans': ['Starter Plan', 'Premium Plan', 'Elite Plan'],
+    'Fresh Bar': ['All Blends', 'Detox Elixirs', 'Power Smoothies'],
+    'Reset': ['Quick Reset', 'Deep Cleanse', 'Total Reboot'],
+    'Thrive': ["Beginner's Path", 'Premium Balance', 'Elite Wellness'],
   }
 
   // Sticky category bar tabs - different for each menu
   const shopCategoriesByMenu = {
-    Shop: ['All', 'Detox', 'Smoothies', 'Protein', 'Wellness'],
-    Cleanses: ['Shop All Cleanses', 'Juice Cleanses', '3-Day Cleanse', '5-Day Cleanse', '7-Day Cleanse'],
-    'Meal Plans': ['Shop All Meals', 'The PRESS Plan', 'Meal Delivery', '5:2 Diet'],
+    'Fresh Bar': ['All Blends', 'Detox Elixirs', 'Power Smoothies', 'Protein Boost', 'Wellness Shots'],
+    'Reset': ['All Programs', 'Juice Cleanses', 'Quick Reset', 'Deep Cleanse', 'Total Reboot'],
+    'Thrive': ['All Plans', 'Daily Balance', 'Meal Delivery', 'Wellness Path'],
   }
 
   // Auto-slideshow for home hero images (every 5 seconds)
@@ -152,6 +162,20 @@ export default function Home() {
     }
   }, [activePrimary, showLeftList, isHovered])
 
+  // Scroll listener for compact category bar
+  useEffect(() => {
+    const handleScroll = () => {
+      if (showLeftList) {
+        const scrollY = window.scrollY
+        // Activate compact mode after scrolling 500px
+        setIsCompactMode(scrollY > 500)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [showLeftList])
+
   // Reset to home page
   const handleLogoClick = () => {
     setActivePrimary('Home')
@@ -159,21 +183,31 @@ export default function Home() {
     setActiveShopItem(null)
     setIsHovered(false)
     setHoveredMenu(null)
-    setActiveCategory('All')
+    setActiveCategory('All Blends')
+    setActiveFlavor(null)
+    setShowFlavorCategories(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // Called by Navbar on click
   const handlePrimaryChange = (key, openShop = false) => {
+    // Trigger transition animation for menu navigation
+    if (openShop && (key === 'Fresh Bar' || key === 'Reset' || key === 'Thrive')) {
+      setTransitionColor(menuColors[key] || '#FF6B35')
+      setShowTransition(true)
+    }
+
     setActivePrimary(key)
     setActiveShopItem(null)
     setIsHovered(false)
     setHoveredMenu(null)
+    setActiveFlavor(null)
+    setShowFlavorCategories(false)
 
-    if (openShop && (key === 'Shop' || key === 'Cleanses' || key === 'Meal Plans')) {
+    if (openShop && (key === 'Fresh Bar' || key === 'Reset' || key === 'Thrive')) {
       // Open full shop section like Press London "Shop All" page
       setShowLeftList(true)
-      setActiveCategory('All')
+      setActiveCategory('All Blends')
 
       setTimeout(() => {
         shopSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -214,13 +248,13 @@ export default function Home() {
   }
 
   // Get the appropriate category list based on active menu
-  const currentCategories = shopCategoriesByMenu[activePrimary] || shopCategoriesByMenu.Shop
+  const currentCategories = shopCategoriesByMenu[activePrimary] || shopCategoriesByMenu['Fresh Bar']
   const currentMenuColor = menuColors[activePrimary] || '#FF6B35'
 
   return (
     <div className="bg-white min-h-screen">
       {/* Sticky Header - Overlays on hero images */}
-      <header className="fixed top-0 left-0 right-0 z-50 w-full">
+      <header className="fixed top-0 left-0 right-0 z-50 w-full bg-white shadow-md">
         <TopScroll />
         <Navbar
           activePrimary={activePrimary}
@@ -243,7 +277,7 @@ export default function Home() {
 
       {/* Hero Section with Extended Hover Zone */}
       <div
-        className="relative"
+        className="relative pt-[100px]"
         onMouseEnter={() => {
           if (isHovered && hoverTimeoutRef.current) {
             clearTimeout(hoverTimeoutRef.current)
@@ -314,12 +348,32 @@ export default function Home() {
       </div>
 
       {/* Shop Section with Sticky Category Bar (shows on click of Shop/Cleanses/Meal Plans) */}
-      <section ref={shopSectionRef} className="bg-white" style={{ paddingTop: '160px' }}>
+      <section ref={shopSectionRef} className="bg-white">
         {showLeftList &&
-          (activePrimary === 'Shop' ||
-            activePrimary === 'Cleanses' ||
-            activePrimary === 'Meal Plans') && (
+          (activePrimary === 'Fresh Bar' ||
+            activePrimary === 'Reset' ||
+            activePrimary === 'Thrive') && (
             <>
+              {/* Section Hero - Full-width background image */}
+              <SectionHero
+                title={sectionHeroConfig[activePrimary]?.title}
+                subtitle={sectionHeroConfig[activePrimary]?.subtitle}
+                backgroundImage={sectionHeroConfig[activePrimary]?.backgroundImage}
+                menuColor={currentMenuColor}
+                ctaText={sectionHeroConfig[activePrimary]?.ctaText}
+                sectionKey={activePrimary}
+                onCtaClick={() => {
+                  // Scroll to product grid
+                  setTimeout(() => {
+                    const heroHeight = window.innerWidth >= 1024 ? 420 : window.innerWidth >= 768 ? 380 : window.innerWidth >= 640 ? 320 : 280
+                    window.scrollTo({ 
+                      top: shopSectionRef.current?.offsetTop + heroHeight - 100,
+                      behavior: 'smooth' 
+                    })
+                  }, 100)
+                }}
+              />
+              
               {/* Shop Header Section - COMMENTED OUT */}
               {/* <div className="bg-cream py-12 px-8 sm:px-12 lg:px-20">
                 <div className="mb-6">
@@ -355,21 +409,59 @@ export default function Home() {
               <ShopCategoryBar
                 categories={currentCategories}
                 activeCategory={activeCategory}
-                onCategoryChange={setActiveCategory}
+                onCategoryChange={(category) => {
+                  // Trigger transition for category changes (but not for "All" categories)
+                  if (!category.includes('All')) {
+                    setTransitionColor(currentMenuColor)
+                    setShowTransition(true)
+                  }
+                  
+                  setActiveCategory(category)
+                  // If selecting Detox Elixirs or Power Smoothies, show flavor categories
+                  if (category === 'Detox Elixirs' || category === 'Power Smoothies' || category === 'Protein Boost' || category === 'Wellness Shots') {
+                    setShowFlavorCategories(true)
+                    setActiveFlavor(null) // Reset flavor when entering flavor view
+                  } else {
+                    setShowFlavorCategories(false)
+                    setActiveFlavor(null)
+                  }
+                }}
                 menuColor={currentMenuColor}
+                activeFlavor={activeFlavor}
+                onFlavorChange={setActiveFlavor}
+                showFlavorCategories={showFlavorCategories}
+                products={products}
+                isCompactMode={isCompactMode}
               />
               <ProductGrid
                 products={products}
                 activeCategory={activeCategory}
+                activeFlavor={activeFlavor}
+                showFlavorCategories={showFlavorCategories}
                 title="Our Collection"
                 menuColor={currentMenuColor}
+                shopSectionRef={shopSectionRef}
+                onViewAll={() => {
+                  setActiveCategory('All Blends')
+                  setActiveFlavor(null)
+                  setShowFlavorCategories(false)
+                  // Scroll to shop section top
+                  setTimeout(() => {
+                    shopSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }, 100)
+                }}
+                onProductClick={(product) => setSelectedProduct(product)}
               />
             </>
           )}
       </section>
 
       {/* Health Journey Section - Only show on home page */}
-      {!showLeftList && activePrimary === 'Home' && <HealthJourney />}
+      {!showLeftList && activePrimary === 'Home' && (
+        <HealthJourney 
+          onJourneyClick={(menuKey) => handlePrimaryChange(menuKey, true)}
+        />
+      )}
 
       {/* Additional Sections */}
       <ThreeBlocks />
@@ -378,6 +470,22 @@ export default function Home() {
 
       {/* Cart Modal */}
       {showCart && <Cart onClose={() => setShowCart(false)} />}
+
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <ProductDetail
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          menuColor={currentMenuColor}
+        />
+      )}
+
+      {/* Page Transition Animation */}
+      <PageTransition
+        isActive={showTransition}
+        color={transitionColor}
+        onComplete={() => setShowTransition(false)}
+      />
     </div>
   )
 }

@@ -1,9 +1,15 @@
 import ProductCard from '../components/ProductCard'
+import SectionBanner from '../components/SectionBanner'
 
 export default function ProductGrid({
   products,
   activeCategory,
+  activeFlavor,
+  showFlavorCategories = false,
   menuColor = '#FF6B35',
+  onViewAll,
+  onProductClick,
+  shopSectionRef,
 }) {
   const getBackgroundColor = (hexColor) => {
     const hex = hexColor.replace('#', '')
@@ -13,39 +19,113 @@ export default function ProductGrid({
     return `rgba(${r}, ${g}, ${b}, 0.02)`
   }
 
-  const filteredProducts =
-    activeCategory === 'All'
+  // Map new category names to product categories
+  const categoryMapping = {
+    // Fresh Bar - Individual Products
+    'All Blends': 'All',
+    'Detox Elixirs': 'Detox',
+    'Power Smoothies': 'Smoothies',
+    'Protein Boost': 'Protein',
+    'Wellness Shots': 'Wellness',
+    // Reset Menu - Cleanse Programs
+    'All Programs': 'All',
+    'Juice Cleanses': 'Juice Cleanses',
+    'Quick Reset': 'Quick Reset',
+    'Deep Cleanse': 'Deep Cleanse',
+    'Total Reboot': 'Total Reboot',
+    // Thrive Menu - Meal Plans
+    'All Plans': 'All',
+    'Daily Balance': "Beginner's Path",
+    'Meal Delivery': 'Premium Balance',
+    'Wellness Path': 'Elite Wellness',
+  }
+
+  const mappedCategory = categoryMapping[activeCategory] || activeCategory
+
+  // Enhanced filtering: When a flavor is selected, show ALL products containing that fruit
+  const filteredProducts = showFlavorCategories && activeFlavor
+    ? products.filter(product => {
+        // Check if product has fruitIngredients array and contains the selected flavor
+        if (product.fruitIngredients && Array.isArray(product.fruitIngredients)) {
+          return product.fruitIngredients.includes(activeFlavor)
+        }
+        // Fallback to exact flavor match for products without fruitIngredients
+        return product.flavor === activeFlavor
+      })
+    : mappedCategory === 'All' || activeCategory === 'All Blends' || activeCategory === 'All Programs' || activeCategory === 'All Plans'
       ? products
       : products.filter(
           (product) =>
-            product.category.toLowerCase() === activeCategory.toLowerCase()
+            product.category.toLowerCase() === mappedCategory.toLowerCase()
         )
+
+  // Get product count for display
+  const productCount = filteredProducts.length;
+
+  // Get the active color - use flavor color if flavor is selected
+  const displayColor = showFlavorCategories && activeFlavor
+    ? products.find(p => p.flavor === activeFlavor)?.flavorColor || menuColor
+    : menuColor;
 
   return (
     <>
-      {/* Gap/Spacer */}
-      <div className="h-8 bg-white"></div>
+      {/* Section Banner - Only show for main categories, not for flavor filters */}
+      {!showFlavorCategories && (
+        <SectionBanner
+          category={activeCategory}
+          menuColor={displayColor}
+          onCtaClick={() => {
+            if (shopSectionRef?.current) {
+              const yOffset = -120; // Account for sticky header
+              const element = shopSectionRef.current;
+              const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+              window.scrollTo({ top: y, behavior: 'smooth' });
+            }
+          }}
+        />
+      )}
+
+      {/* Gap/Spacer - Smaller when banner is shown */}
+      <div className={showFlavorCategories ? "h-8 bg-white" : "h-0"}></div>
 
       {/* Products Section */}
       <section 
-        className="w-full px-12 py-16 bg-white transition-colors duration-300 relative overflow-hidden"
-        style={{ backgroundColor: getBackgroundColor(menuColor) }}
+        ref={shopSectionRef}
+        className="w-full py-16 bg-white transition-colors duration-300 relative overflow-hidden"
+        style={{ backgroundColor: getBackgroundColor(displayColor) }}
       >
         {/* Animated background bubbles */}
-        <div className="absolute top-0 left-0 w-96 h-96 rounded-full opacity-5 blur-3xl" style={{ backgroundColor: menuColor }}></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full opacity-5 blur-3xl" style={{ backgroundColor: menuColor }}></div>
+        <div className="absolute top-0 left-0 w-96 h-96 rounded-full opacity-5 blur-3xl transition-colors duration-500" style={{ backgroundColor: displayColor }}></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full opacity-5 blur-3xl transition-colors duration-500" style={{ backgroundColor: displayColor }}></div>
 
-        <div className="max-w-full mx-auto relative z-10">
+        <div className="w-full px-8 sm:px-12 lg:px-20 relative z-10">
+          {/* Product Count Header */}
+          {(showFlavorCategories && activeFlavor) && (
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold mb-2" style={{ color: displayColor }}>
+                {activeFlavor} Products
+              </h2>
+              <p className="text-gray-600 text-lg">
+                Found {productCount} {productCount === 1 ? 'product' : 'products'} with {activeFlavor}
+              </p>
+            </div>
+          )}
+
           {filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-16">
               {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} menuColor={menuColor} />
+                <ProductCard 
+                  key={product.id} 
+                  product={product} 
+                  menuColor={displayColor} 
+                  onProductClick={onProductClick}
+                />
               ))}
             </div>
           ) : (
             <div className="text-center py-16">
               <p className="text-lg text-gray-600">
-                No products found in this category.
+                No products found in this {activeFlavor ? 'flavor' : 'category'}.
               </p>
             </div>
           )}
@@ -53,6 +133,7 @@ export default function ProductGrid({
           {/* Unique Attractive Button */}
           <div className="flex justify-center items-center mt-12">
             <button 
+              onClick={() => onViewAll && onViewAll()}
               className="relative px-10 py-4 text-white font-bold text-lg rounded-lg overflow-hidden group shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
               style={{ backgroundColor: menuColor }}
             >
