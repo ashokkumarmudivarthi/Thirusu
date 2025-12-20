@@ -168,6 +168,15 @@ export default function Navbar({
                   </button>
                   <button
                     onClick={() => {
+                      navigate('/my-orders')
+                      setShowUserMenu(false)
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
+                  >
+                    My Orders
+                  </button>
+                  <button
+                    onClick={() => {
                       navigate('/wishlist')
                       setShowUserMenu(false)
                     }}

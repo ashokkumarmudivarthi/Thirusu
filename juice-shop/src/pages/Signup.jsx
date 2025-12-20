@@ -4,6 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import TopScroll from '../sections/TopScroll';
 import Footer from '../components/Footer';
+import SearchModal from '../components/SearchModal';
+import ProductDetail from '../components/ProductDetail';
+import Cart from './Cart';
 
 export default function Signup() {
   const [formData, setFormData] = useState({
@@ -13,6 +16,9 @@ export default function Signup() {
     confirmPassword: '',
   });
   const [errors, setErrors] = useState({});
+  const [showSearch, setShowSearch] = useState(false);
+  const [showCart, setShowCart] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const { signup } = useAuth();
   const navigate = useNavigate();
 
@@ -78,6 +84,8 @@ export default function Signup() {
           currentMenuColor="#FF6B35"
           showLeftList={true}
           onLogoClick={() => navigate('/')}
+          onSearchClick={() => setShowSearch(true)}
+          onCartClick={() => setShowCart(true)}
         />
       </header>
 
@@ -208,6 +216,25 @@ export default function Signup() {
       </div>
 
       <Footer />
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={showSearch}
+        onClose={() => setShowSearch(false)}
+        onProductClick={(product) => setSelectedProduct(product)}
+      />
+
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <ProductDetail
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          menuColor="#FF6B35"
+        />
+      )}
+
+      {/* Cart Modal */}
+      {showCart && <Cart onClose={() => setShowCart(false)} />}
     </div>
   );
 }

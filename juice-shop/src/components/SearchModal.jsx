@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { products } from '../utils/products';
 
-export default function SearchModal({ isOpen, onClose }) {
+export default function SearchModal({ isOpen, onClose, onProductClick }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const navigate = useNavigate();
 
   const categories = ['All', 'Cold Pressed Juices', 'Shots', 'Cleanses', 'Bundles'];
 
@@ -30,12 +28,14 @@ export default function SearchModal({ isOpen, onClose }) {
     setSearchResults(filtered);
   }, [searchTerm, selectedCategory]);
 
-  const handleProductClick = (productId) => {
-    navigate(`/product/${productId}`);
+  const handleProductClick = (product) => {
     setSearchTerm('');
     setSearchResults([]);
     setSelectedCategory('All');
     onClose();
+    if (onProductClick) {
+      onProductClick(product);
+    }
   };
 
   if (!isOpen) return null;
@@ -112,7 +112,7 @@ export default function SearchModal({ isOpen, onClose }) {
               {searchResults.map(product => (
                 <button
                   key={product.id}
-                  onClick={() => handleProductClick(product.id)}
+                  onClick={() => handleProductClick(product)}
                   className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
                 >
                   <img
@@ -124,13 +124,11 @@ export default function SearchModal({ isOpen, onClose }) {
                     <h3 className="font-semibold text-gray-900">{product.name}</h3>
                     <p className="text-sm text-gray-500 line-clamp-1">{product.description}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      {product.originalPrice && (
-                        <span className="text-sm text-gray-400 line-through">
-                          £{product.originalPrice.toFixed(2)}
-                        </span>
-                      )}
                       <span className="text-lg font-bold text-orange-600">
-                        £{product.price.toFixed(2)}
+                        ₹{product.sizes?.[1]?.price || product.price}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        ({product.sizes?.[1]?.size || '500ml'})
                       </span>
                     </div>
                   </div>

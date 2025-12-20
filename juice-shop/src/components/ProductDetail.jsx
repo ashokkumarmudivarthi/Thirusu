@@ -23,6 +23,9 @@ export default function ProductDetail({ product, onClose, menuColor = '#FF6B35' 
   const displayProduct = selectedSize ? { ...product, ...selectedSize, price: selectedSize.price } : product
 
   const handleAddToCart = () => {
+    if (!selectedSize?.inStock) {
+      return; // Prevent adding out of stock items
+    }
     addToCart(displayProduct, quantity)
     setShowSuccess(true)
     setTimeout(() => setShowSuccess(false), 2000)
@@ -100,8 +103,21 @@ export default function ProductDetail({ product, onClose, menuColor = '#FF6B35' 
           <div className="space-y-6">
             {/* Product Name & Category */}
             <div>
-              <div className="inline-block px-4 py-1 rounded-full text-sm font-semibold mb-3" style={{ backgroundColor: `${menuColor}20`, color: menuColor }}>
-                {product.category}
+              <div className="flex items-center gap-3 mb-3">
+                <div className="inline-block px-4 py-1 rounded-full text-sm font-semibold" style={{ backgroundColor: `${menuColor}20`, color: menuColor }}>
+                  {product.category}
+                </div>
+                {selectedSize && (
+                  selectedSize.inStock ? (
+                    <span className="px-3 py-1 rounded-full bg-green-500 text-white text-xs font-bold">
+                      ✓ In Stock ({selectedSize.stock} available)
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 rounded-full bg-red-500 text-white text-xs font-bold">
+                      Out of Stock
+                    </span>
+                  )
+                )}
               </div>
               <h1 className="text-4xl font-bold text-gray-900 mb-2">{product.name}</h1>
               <p className="text-lg text-gray-600">{product.short}</p>
@@ -201,7 +217,10 @@ export default function ProductDetail({ product, onClose, menuColor = '#FF6B35' 
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="p-2 rounded-lg border-2 hover:bg-gray-100 transition-colors"
+                  disabled={!selectedSize?.inStock}
+                  className={`p-2 rounded-lg border-2 transition-colors ${
+                    !selectedSize?.inStock ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'
+                  }`}
                   style={{ borderColor: `${menuColor}40` }}
                 >
                   <Minus size={20} style={{ color: menuColor }} />
@@ -209,13 +228,23 @@ export default function ProductDetail({ product, onClose, menuColor = '#FF6B35' 
                 <span className="w-16 text-center font-bold text-2xl">{quantity}</span>
                 <button
                   onClick={() => setQuantity(quantity + 1)}
-                  className="p-2 rounded-lg border-2 hover:bg-gray-100 transition-colors"
+                  disabled={!selectedSize?.inStock}
+                  className={`p-2 rounded-lg border-2 transition-colors ${
+                    !selectedSize?.inStock ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'
+                  }`}
                   style={{ borderColor: `${menuColor}40` }}
                 >
                   <Plus size={20} style={{ color: menuColor }} />
                 </button>
               </div>
             </div>
+
+            {/* Out of Stock Warning */}
+            {selectedSize && !selectedSize.inStock && (
+              <div className="p-4 bg-red-100 text-red-800 rounded-xl text-center font-semibold border border-red-200">
+                ⚠️ This size is currently out of stock
+              </div>
+            )}
 
             {/* Success Message */}
             {showSuccess && (
@@ -228,11 +257,16 @@ export default function ProductDetail({ product, onClose, menuColor = '#FF6B35' 
             <div className="flex gap-4 pt-4">
               <button
                 onClick={handleAddToCart}
-                className="flex-1 py-4 px-6 rounded-xl font-bold text-white transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl"
-                style={{ backgroundColor: menuColor }}
+                disabled={!selectedSize?.inStock}
+                className={`flex-1 py-4 px-6 rounded-xl font-bold text-white transition-all duration-300 transform flex items-center justify-center gap-3 shadow-lg ${
+                  selectedSize?.inStock 
+                    ? 'hover:scale-105 active:scale-95 hover:shadow-xl' 
+                    : 'opacity-50 cursor-not-allowed'
+                }`}
+                style={{ backgroundColor: selectedSize?.inStock ? menuColor : '#9CA3AF' }}
               >
                 <ShoppingCart size={22} />
-                Add to Cart
+                {selectedSize?.inStock ? 'Add to Cart' : 'Out of Stock'}
               </button>
               <button
                 onClick={onClose}

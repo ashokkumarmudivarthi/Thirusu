@@ -25,9 +25,6 @@ export default function Profile() {
     return null;
   }
 
-  const orders = JSON.parse(localStorage.getItem('thirusu-orders') || '[]');
-  const userOrders = orders.filter(order => order.email === user.email);
-
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -73,6 +70,23 @@ export default function Profile() {
           {/* Quick Links */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <button
+              onClick={() => navigate('/my-orders')}
+              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">My Orders</h3>
+                  <p className="text-sm text-gray-500">Track your orders</p>
+                </div>
+              </div>
+            </button>
+
+            <button
               onClick={() => navigate('/wishlist')}
               className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
             >
@@ -105,69 +119,21 @@ export default function Profile() {
                 </div>
               </div>
             </button>
-
-            <button className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Settings</h3>
-                  <p className="text-sm text-gray-500">Account preferences</p>
-                </div>
-              </div>
-            </button>
           </div>
 
-          {/* Order History */}
+          {/* Account Settings */}
           <div className="bg-white rounded-lg shadow-md p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Order History</h2>
-            
-            {userOrders.length === 0 ? (
-              <div className="text-center py-12">
-                <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-                <p className="text-gray-500 text-lg">No orders yet</p>
-                <button
-                  onClick={() => navigate('/')}
-                  className="mt-4 px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                >
-                  Start Shopping
-                </button>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Account Settings</h2>
+            <div className="space-y-4">
+              <div className="border-b pb-4">
+                <p className="text-sm text-gray-500">Email Address</p>
+                <p className="text-gray-900 font-medium">{user.email}</p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {userOrders.map((order, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">Order #{order.id || index + 1}</h3>
-                        <p className="text-sm text-gray-500">{order.date || 'Recent order'}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-orange-600">₹{Math.round(order.total)}</p>
-                        <span className="inline-block px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                          Completed
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="border-t pt-4">
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Delivery to:</span> {order.address}
-                      </p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        <span className="font-medium">Items:</span> {order.items?.length || 0} products
-                      </p>
-                    </div>
-                  </div>
-                ))}
+              <div className="border-b pb-4">
+                <p className="text-sm text-gray-500">Member Since</p>
+                <p className="text-gray-900 font-medium">{new Date(user.id).toLocaleDateString()}</p>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

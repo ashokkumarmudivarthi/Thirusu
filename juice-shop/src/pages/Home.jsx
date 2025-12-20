@@ -13,7 +13,8 @@ import Cart from './Cart'
 import SearchModal from '../components/SearchModal'
 import ProductDetail from '../components/ProductDetail'
 import PageTransition from '../components/PageTransition'
-import { products } from '../utils/products'
+import { productsAPI } from '../services/api'
+import { products as staticProducts } from '../utils/products'
 import { sectionHeroConfig, sectionHeroGradients } from '../utils/sectionHeroConfig'
 
 export default function Home() {
@@ -32,8 +33,69 @@ export default function Home() {
   const [selectedProduct, setSelectedProduct] = useState(null) // Product detail modal
   const [showTransition, setShowTransition] = useState(false) // Page transition animation
   const [transitionColor, setTransitionColor] = useState('#FF6B35') // Transition color
+  const [products, setProducts] = useState([])
+  const [productsLoading, setProductsLoading] = useState(true)
+  const [productsError, setProductsError] = useState(null)
   const shopSectionRef = useRef(null)
   const hoverTimeoutRef = useRef(null)
+
+  // Fetch products from API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setProductsLoading(true)
+        const apiProducts = await productsAPI.getAll()
+        
+        // Transform API products to match frontend format
+        const transformedProducts = apiProducts.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description || p.short_description,
+          short: p.short_description,
+          long: p.long_description,
+          shortDescription: p.short_description,
+          longDescription: p.long_description,
+          category: p.category,
+          price: parseFloat(p.base_price),
+          basePrice: parseFloat(p.base_price),
+          image: p.image_url,
+          flavor: p.name.split(' ')[0], // Extract flavor from name
+          flavorColor: '#FF6B35', // Default color, can be customized
+          isActive: p.is_active,
+          sizes: p.sizes.map(s => ({
+            id: s.id,
+            size: s.size,
+            price: parseFloat(s.price),
+            stock: s.stock,
+            inStock: s.inStock,
+            calories: s.calories,
+            protein: s.protein,
+            carbs: s.carbs,
+            sugar: s.sugar,
+            vitaminC: s.vitaminC,
+            servingSize: s.servingSize
+          })),
+          fruitIngredients: p.ingredients || []
+        }))
+        
+        // Merge with static products for any missing categories
+        const mergedProducts = [...transformedProducts, ...staticProducts.filter(sp => 
+          !transformedProducts.find(tp => tp.id === sp.id)
+        )]
+        
+        setProducts(mergedProducts)
+        setProductsError(null)
+      } catch (error) {
+        console.error('Error fetching products:', error)
+        setProductsError('Failed to load products. Using offline data.')
+        setProducts(staticProducts) // Fallback to static data
+      } finally {
+        setProductsLoading(false)
+      }
+    }
+
+    fetchProducts()
+  }, [])
 
   const menuColors = {
     'Fresh Bar': '#FF6B35',
@@ -272,7 +334,8 @@ export default function Home() {
       {/* Search Modal */}
       <SearchModal 
         isOpen={showSearch} 
-        onClose={() => setShowSearch(false)} 
+        onClose={() => setShowSearch(false)}
+        onProductClick={(product) => setSelectedProduct(product)}
       />
 
       {/* Hero Section with Extended Hover Zone */}

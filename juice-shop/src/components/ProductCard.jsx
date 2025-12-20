@@ -69,6 +69,21 @@ export default function ProductCard({ product, menuColor = '#FF6B35', onProductC
           />
         </button>
 
+        {/* Stock Badge */}
+        {selectedSize && (
+          <div className="absolute top-4 left-4">
+            {selectedSize.inStock ? (
+              <span className="px-3 py-1 rounded-full bg-green-500 text-white text-xs font-bold shadow-md">
+                ✓ In Stock
+              </span>
+            ) : (
+              <span className="px-3 py-1 rounded-full bg-red-500 text-white text-xs font-bold shadow-md">
+                Out of Stock
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Animated Badge */}
         <div 
           className="absolute bottom-4 left-4 px-4 py-2 rounded-full bg-white/90 backdrop-blur font-bold text-sm shadow-md transform translate-y-12 group-hover:translate-y-0 transition-transform duration-300"
@@ -149,7 +164,10 @@ export default function ProductCard({ product, menuColor = '#FF6B35', onProductC
                 e.stopPropagation()
                 setQuantity(Math.max(1, quantity - 1))
               }}
-              className="p-1 rounded-md border-2 hover:bg-gray-100 transition-colors"
+              disabled={!selectedSize?.inStock}
+              className={`p-1 rounded-md border-2 transition-colors ${
+                !selectedSize?.inStock ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'
+              }`}
               style={{ borderColor: menuColor + '40' }}
             >
               <Minus size={16} style={{ color: menuColor }} />
@@ -160,13 +178,23 @@ export default function ProductCard({ product, menuColor = '#FF6B35', onProductC
                 e.stopPropagation()
                 setQuantity(quantity + 1)
               }}
-              className="p-1 rounded-md border-2 hover:bg-gray-100 transition-colors"
+              disabled={!selectedSize?.inStock}
+              className={`p-1 rounded-md border-2 transition-colors ${
+                !selectedSize?.inStock ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'
+              }`}
               style={{ borderColor: menuColor + '40' }}
             >
               <Plus size={16} style={{ color: menuColor }} />
             </button>
           </div>
         </div>
+
+        {/* Stock Warning */}
+        {selectedSize && !selectedSize.inStock && (
+          <div className="mb-3 p-2 bg-red-100 text-red-800 text-sm rounded-lg text-center font-semibold">
+            ⚠️ Currently out of stock
+          </div>
+        )}
 
         {/* Success Message */}
         {showSuccess && (
@@ -178,8 +206,13 @@ export default function ProductCard({ product, menuColor = '#FF6B35', onProductC
         {/* Dynamic Add to Cart Button */}
         <button
           onClick={handleAddToCart}
-          className="w-full py-3 px-4 rounded-lg font-bold text-white transition-all duration-300 transform overflow-hidden group/btn relative flex items-center justify-center gap-2 hover:scale-105 active:scale-95"
-          style={{ backgroundColor: menuColor }}
+          disabled={!selectedSize?.inStock}
+          className={`w-full py-3 px-4 rounded-lg font-bold text-white transition-all duration-300 transform overflow-hidden group/btn relative flex items-center justify-center gap-2 ${
+            selectedSize?.inStock 
+              ? 'hover:scale-105 active:scale-95' 
+              : 'opacity-50 cursor-not-allowed'
+          }`}
+          style={{ backgroundColor: selectedSize?.inStock ? menuColor : '#9CA3AF' }}
         >
           {/* Animated background */}
           <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-full group-hover/btn:translate-x-0 transition-transform duration-500"></span>
@@ -187,11 +220,13 @@ export default function ProductCard({ product, menuColor = '#FF6B35', onProductC
           {/* Button content */}
           <span className="relative flex items-center gap-2">
             <ShoppingCart size={18} />
-            {isHovered ? 'Add to Cart' : 'Shop Now'}
+            {!selectedSize?.inStock ? 'Out of Stock' : isHovered ? 'Add to Cart' : 'Shop Now'}
           </span>
 
           {/* Animated border glow */}
-          <span className="absolute inset-0 rounded-lg opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" style={{ boxShadow: `inset 0 0 0 2px ${menuColor}, 0 0 20px ${menuColor}40` }}></span>
+          {selectedSize?.inStock && (
+            <span className="absolute inset-0 rounded-lg opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" style={{ boxShadow: `inset 0 0 0 2px ${menuColor}, 0 0 20px ${menuColor}40` }}></span>
+          )}
         </button>
 
         {/* Comparison Link */}

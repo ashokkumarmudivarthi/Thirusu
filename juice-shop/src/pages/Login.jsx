@@ -4,12 +4,18 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import TopScroll from '../sections/TopScroll';
 import Footer from '../components/Footer';
+import SearchModal from '../components/SearchModal';
+import ProductDetail from '../components/ProductDetail';
+import Cart from './Cart';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
-  const { login, continueAsGuest } = useAuth();
+  const [showSearch, setShowSearch] = useState(false);
+  const [showCart, setShowCart] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const { login, continueAsGuest, loading, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -41,11 +47,16 @@ export default function Login() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      login(email, password);
-      navigate(from, { replace: true });
+      try {
+        await login(email, password);
+        navigate(from, { replace: true });
+      } catch (err) {
+        // Error is already set in AuthContext
+        console.error('Login error:', err);
+      }
     }
   };
 
@@ -64,6 +75,8 @@ export default function Login() {
           currentMenuColor="#FF6B35"
           showLeftList={true}
           onLogoClick={() => navigate('/')}
+          onSearchClick={() => setShowSearch(true)}
+          onCartClick={() => setShowCart(true)}
         />
       </header>
 
@@ -120,13 +133,23 @@ export default function Login() {
               </div>
             </div>
 
+            {/* API Error Message */}
+            {error && (
+              <div className="rounded-md bg-red-50 p-4 border border-red-200">
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            )}
+
             {/* Sign In Button */}
             <div className="pt-4">
               <button
                 type="submit"
-                className="w-full py-4 px-6 bg-gradient-to-r from-lime-300 to-lime-400 hover:from-lime-400 hover:to-lime-500 text-gray-900 font-bold text-base tracking-wider uppercase rounded-none transition-all duration-300 shadow-md hover:shadow-lg"
+                disabled={loading}
+                className={`w-full py-4 px-6 bg-gradient-to-r from-lime-300 to-lime-400 hover:from-lime-400 hover:to-lime-500 text-gray-900 font-bold text-base tracking-wider uppercase rounded-none transition-all duration-300 shadow-md hover:shadow-lg ${
+                  loading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
-                SIGN IN
+                {loading ? 'SIGNING IN...' : 'SIGN IN'}
               </button>
             </div>
           </form>
@@ -159,6 +182,25 @@ export default function Login() {
       </div>
 
       <Footer />
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={showSearch}
+        onClose={() => setShowSearch(false)}
+        onProductClick={(product) => setSelectedProduct(product)}
+      />
+
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <ProductDetail
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          menuColor="#FF6B35"
+        />
+      )}
+
+      {/* Cart Modal */}
+      {showCart && <Cart onClose={() => setShowCart(false)} />}
     </div>
   );
 }

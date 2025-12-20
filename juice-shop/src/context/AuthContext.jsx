@@ -1,10 +1,11 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('thirusu-user');
+    const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
@@ -12,11 +13,14 @@ export function AuthProvider({ children }) {
     return localStorage.getItem('thirusu-guest') === 'true';
   });
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   useEffect(() => {
     if (user) {
-      localStorage.setItem('thirusu-user', JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(user));
     } else {
-      localStorage.removeItem('thirusu-user');
+      localStorage.removeItem('user');
     }
   }, [user]);
 
@@ -24,33 +28,44 @@ export function AuthProvider({ children }) {
     localStorage.setItem('thirusu-guest', isGuestMode.toString());
   }, [isGuestMode]);
 
-  const login = (email, password) => {
-    // Simple mock login - in production, this would call an API
-    const mockUser = {
-      id: Date.now(),
-      name: email.split('@')[0],
-      email: email,
-      avatar: null,
-    };
-    setUser(mockUser);
-    setIsGuestMode(false);
-    return mockUser;
+  const login = async (email, password) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await authAPI.login(email, password);
+      setUser(data.user);
+      setIsGuestMode(false);
+      return data.user;
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Login failed. Please check your credentials.';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const signup = (name, email, password) => {
-    // Simple mock signup - in production, this would call an API
-    const newUser = {
-      id: Date.now(),
-      name: name,
-      email: email,
-      avatar: null,
-    };
-    setUser(newUser);
-    setIsGuestMode(false);
-    return newUser;
+  const signup = async (name, email, password) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await authAPI.register(name, email, password);
+      // Auto-login after signup
+      const loginData = await authAPI.login(email, password);
+      setUser(loginData.user);
+      setIsGuestMode(false);
+      return loginData.user;
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Signup failed. Please try again.';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
+    authAPI.logout();
     setUser(null);
     setIsGuestMode(false);
   };
@@ -64,6 +79,8 @@ export function AuthProvider({ children }) {
     user,
     isGuestMode,
     isAuthenticated: !!user,
+    loading,
+    error,
     login,
     signup,
     logout,
