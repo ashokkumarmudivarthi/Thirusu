@@ -1,6 +1,26 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+// Detect if running on mobile (Capacitor) or web
+const isMobile = () => {
+  return window.Capacitor !== undefined;
+};
+
+// API Base URL configuration
+// For mobile: Use your laptop's local IP address (get it from ipconfig)
+// For production: Replace with your deployed backend URL
+const getApiBaseUrl = () => {
+  if (isMobile()) {
+    // TODO: Replace with your actual backend URL
+    // Option 1: Use local IP for development (your laptop IP: 192.168.1.6)
+    return 'http://192.168.1.6:5000/api'; // Using your detected local IP
+    // Option 2: Use deployed backend
+    // return 'https://your-backend-domain.com/api';
+  }
+  // Web development
+  return 'http://localhost:5000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Create axios instance with default config
 const api = axios.create({

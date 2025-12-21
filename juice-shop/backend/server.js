@@ -21,7 +21,14 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? 'https://yourdomain.com' 
-    : ['http://localhost:5173', 'http://localhost:5174'],
+    : [
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'capacitor://localhost',  // Capacitor iOS
+        'http://localhost',       // Capacitor Android
+        'ionic://localhost',      // Ionic
+        'http://192.168.1.6:5173' // Mobile development (local IP)
+      ],
   credentials: true
 }));
 app.use(morgan('dev'));
