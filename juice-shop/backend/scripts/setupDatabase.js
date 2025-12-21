@@ -119,13 +119,124 @@ const setupDatabase = async () => {
     `);
     console.log('✅ Stock History table created');
 
+    // Create Scrolling Offers table (for top banner)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS scrolling_offers (
+        id SERIAL PRIMARY KEY,
+        text VARCHAR(500) NOT NULL,
+        icon VARCHAR(50),
+        is_active BOOLEAN DEFAULT true,
+        display_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Scrolling Offers table created');
+
+    // Insert default offers if table is empty
+    const { rows: existingOffers } = await pool.query('SELECT COUNT(*) FROM scrolling_offers');
+    if (parseInt(existingOffers[0].count) === 0) {
+      await pool.query(`
+        INSERT INTO scrolling_offers (text, icon, is_active, display_order) VALUES
+        ('FREE SHIPPING ON ORDERS OVER $50', '🎉', true, 1),
+        ('FRESH COLD-PRESSED DAILY', '🍹', true, 2),
+        ('100% ORGANIC INGREDIENTS', '💚', true, 3),
+        ('LIMITED TIME: 20% OFF YOUR FIRST ORDER', '⚡', true, 4),
+        ('SUBSCRIBE & SAVE UP TO 25%', '🎁', true, 5),
+        ('SAME DAY DELIVERY AVAILABLE', '🚀', true, 6),
+        ('NEW FLAVORS EVERY WEEK', '🌟', true, 7);
+      `);
+      console.log('✅ Default offers inserted');
+    }
+
+    // Create Chat Sessions table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chat_sessions (
+        id SERIAL PRIMARY KEY,
+        customer_id INTEGER REFERENCES users(id),
+        agent_id INTEGER REFERENCES users(id),
+        customer_name VARCHAR(255),
+        customer_email VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'waiting',
+        subject VARCHAR(255),
+        last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        closed_at TIMESTAMP
+      );
+    `);
+    console.log('✅ Chat Sessions table created');
+
+    // Create Chat Messages table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id SERIAL PRIMARY KEY,
+        session_id INTEGER REFERENCES chat_sessions(id) ON DELETE CASCADE,
+        sender_id INTEGER REFERENCES users(id),
+        sender_type VARCHAR(50) NOT NULL,
+        message TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Chat Messages table created');
+
+    // Create Agent Status table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS agent_status (
+        id SERIAL PRIMARY KEY,
+        agent_id INTEGER REFERENCES users(id) UNIQUE,
+        is_online BOOLEAN DEFAULT false,
+        last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        active_chats INTEGER DEFAULT 0,
+        max_chats INTEGER DEFAULT 5,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Agent Status table created');
+
+    // Create Predefined Queries table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS predefined_queries (
+        id SERIAL PRIMARY KEY,
+        question VARCHAR(500) NOT NULL,
+        answer TEXT NOT NULL,
+        category VARCHAR(100),
+        is_active BOOLEAN DEFAULT true,
+        display_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Predefined Queries table created');
+
+    // Insert default predefined queries
+    const { rows: existingQueries } = await pool.query('SELECT COUNT(*) FROM predefined_queries');
+    if (parseInt(existingQueries[0].count) === 0) {
+      await pool.query(`
+        INSERT INTO predefined_queries (question, answer, category, is_active, display_order) VALUES
+        ('What are your delivery hours?', 'We deliver from 8 AM to 10 PM daily. Same-day delivery is available for orders placed before 2 PM.', 'Delivery', true, 1),
+        ('How do I track my order?', 'You can track your order by logging into your account and visiting the "My Orders" page. You''ll see real-time updates on your order status.', 'Orders', true, 2),
+        ('What is your return policy?', 'We offer a 100% satisfaction guarantee. If you''re not happy with your juice, contact us within 24 hours for a full refund.', 'Returns', true, 3),
+        ('Are your juices really organic?', 'Yes! All our juices are made from 100% certified organic ingredients. We cold-press them fresh daily.', 'Products', true, 4),
+        ('Do you offer subscriptions?', 'Yes! Subscribe and save up to 25%. You can customize your delivery frequency and cancel anytime.', 'Subscriptions', true, 5),
+        ('What sizes do you offer?', 'We offer 250ml, 500ml, and 1L bottles. Perfect for any occasion!', 'Products', true, 6);
+      `);
+      console.log('✅ Default predefined queries inserted');
+    }
+
     // Create indexes for better performance
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
       CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
       CREATE INDEX IF NOT EXISTS idx_product_sizes_product_id ON product_sizes(product_id);
       CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
       CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+      CREATE INDEX IF NOT EXISTS idx_scrolling_offers_active ON scrolling_offers(is_active, display_order);
+      CREATE INDEX IF NOT EXISTS idx_chat_sessions_customer ON chat_sessions(customer_id);
+      CREATE INDEX IF NOT EXISTS idx_chat_sessions_agent ON chat_sessions(agent_id);
+      CREATE INDEX IF NOT EXISTS idx_chat_sessions_status ON chat_sessions(status);
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
+      CREATE INDEX IF NOT EXISTS idx_agent_status_online ON agent_status(is_online);
     `);
     console.log('✅ Indexes created');
 

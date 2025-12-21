@@ -13,6 +13,7 @@ import Cart from './Cart'
 import SearchModal from '../components/SearchModal'
 import ProductDetail from '../components/ProductDetail'
 import PageTransition from '../components/PageTransition'
+import ChatWidget from '../components/ChatWidget'
 import { productsAPI } from '../services/api'
 import { products as staticProducts } from '../utils/products'
 import { sectionHeroConfig, sectionHeroGradients } from '../utils/sectionHeroConfig'
@@ -549,6 +550,9 @@ export default function Home() {
         color={transitionColor}
         onComplete={() => setShowTransition(false)}
       />
+
+      {/* Chat Widget */}
+      <ChatWidget />
     </div>
   )
 }

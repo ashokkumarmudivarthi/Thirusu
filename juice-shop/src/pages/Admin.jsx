@@ -5,12 +5,20 @@ import { productsAPI, ordersAPI } from '../services/api';
 import Navbar from '../components/Navbar';
 import TopScroll from '../sections/TopScroll';
 import Footer from '../components/Footer';
-import { Package, TrendingUp, TrendingDown, RefreshCw, Save, X, ShoppingCart, User, Calendar, DollarSign } from 'lucide-react';
+import { Package, TrendingUp, TrendingDown, RefreshCw, Save, X, ShoppingCart, User, Calendar, DollarSign, MessageCircle, Send } from 'lucide-react';
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState('products'); // 'products' or 'orders'
+  const [activeTab, setActiveTab] = useState('products'); // 'products', 'orders', 'offers', or 'support'
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [offers, setOffers] = useState([]);
+  const [chatSessions, setChatSessions] = useState([]);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newChatMessage, setNewChatMessage] = useState('');
+  const [chatFilter, setChatFilter] = useState('active'); // 'active' or 'closed'
+  const [orderFilter, setOrderFilter] = useState('all'); // 'all', 'pending', 'processing', 'shipped', 'delivered', 'cancelled'
+  const [orderSort, setOrderSort] = useState('newest'); // 'newest' or 'oldest'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingStock, setEditingStock] = useState({});
@@ -18,6 +26,8 @@ export default function Admin() {
   const [editingDeliveryDate, setEditingDeliveryDate] = useState({});
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [newOffer, setNewOffer] = useState({ text: '', icon: '🎉', is_active: true });
+  const [editingOffer, setEditingOffer] = useState(null);
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -36,8 +46,20 @@ export default function Admin() {
       fetchProducts();
     } else if (activeTab === 'orders') {
       fetchOrders();
+    } else if (activeTab === 'offers') {
+      fetchOffers();
+    } else if (activeTab === 'support') {
+      fetchChatSessions();
     }
-  }, [activeTab]);
+  }, [activeTab, chatFilter]);
+
+  useEffect(() => {
+    if (selectedSession && activeTab === 'support') {
+      fetchChatMessages();
+      const interval = setInterval(fetchChatMessages, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedSession, activeTab]);
 
   const fetchProducts = async () => {
     try {
@@ -64,6 +86,236 @@ export default function Admin() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getFilteredOrders = () => {
+    let filtered = [...orders];
+    
+    // Filter by status
+    if (orderFilter !== 'all') {
+      filtered = filtered.filter(o => o.status === orderFilter);
+    }
+    
+    // Sort by time based on orderSort
+    if (orderSort === 'newest') {
+      filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    } else {
+      filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    }
+    
+    return filtered;
+  };
+
+  const fetchOffers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/api/offers', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      setOffers(data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load offers');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateOffer = async () => {
+    if (!newOffer.text.trim()) {
+      alert('Please enter offer text');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const response = await fetch('http://localhost:5000/api/offers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          text: newOffer.text,
+          icon: newOffer.icon,
+          is_active: newOffer.is_active,
+          display_order: offers.length + 1
+        })
+      });
+
+      if (response.ok) {
+        setNewOffer({ text: '', icon: '🎉', is_active: true });
+        await fetchOffers();
+        setSuccessMessage('Offer created successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        throw new Error('Failed to create offer');
+      }
+    } catch (err) {
+      alert('Failed to create offer: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateOffer = async (offerId, updates) => {
+    try {
+      setSaving(true);
+      const response = await fetch(`http://localhost:5000/api/offers/${offerId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (response.ok) {
+        await fetchOffers();
+        setEditingOffer(null);
+        setSuccessMessage('Offer updated successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        throw new Error('Failed to update offer');
+      }
+    } catch (err) {
+      alert('Failed to update offer: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleOffer = async (offerId) => {
+    try {
+      setSaving(true);
+      const response = await fetch(`http://localhost:5000/api/offers/${offerId}/toggle`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        await fetchOffers();
+        setSuccessMessage('Offer status toggled!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        throw new Error('Failed to toggle offer');
+      }
+    } catch (err) {
+      alert('Failed to toggle offer: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteOffer = async (offerId) => {
+    if (!confirm('Are you sure you want to delete this offer?')) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const response = await fetch(`http://localhost:5000/api/offers/${offerId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        await fetchOffers();
+        setSuccessMessage('Offer deleted successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        throw new Error('Failed to delete offer');
+      }
+    } catch (err) {
+      alert('Failed to delete offer: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Chat Support Functions
+  const fetchChatSessions = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/api/chat/sessions/all', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      // Filter based on chatFilter state
+      const filtered = chatFilter === 'active' 
+        ? data.filter(s => s.status === 'waiting' || s.status === 'active')
+        : data.filter(s => s.status === 'closed');
+      setChatSessions(filtered);
+    } catch (err) {
+      console.error('Error fetching chat sessions:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchChatMessages = async () => {
+    if (!selectedSession) return;
+    try {
+      const response = await fetch(`http://localhost:5000/api/chat/sessions/${selectedSession.id}/messages`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      setChatMessages(data);
+    } catch (err) {
+      console.error('Error fetching messages:', err);
+    }
+  };
+
+  const sendChatMessage = async () => {
+    if (!newChatMessage.trim() || !selectedSession) return;
+    try {
+      const response = await fetch(`http://localhost:5000/api/chat/sessions/${selectedSession.id}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ message: newChatMessage })
+      });
+      const data = await response.json();
+      setChatMessages(prev => [...prev, data]);
+      setNewChatMessage('');
+    } catch (err) {
+      console.error('Error sending message:', err);
+      alert('Failed to send message');
+    }
+  };
+
+  const closeChatSession = async (sessionId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/chat/sessions/${sessionId}/close`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (response.ok) {
+        alert('Chat session closed successfully');
+        setSelectedSession(null);
+        setChatMessages([]);
+        fetchChatSessions(); // Refresh the list
+      }
+    } catch (err) {
+      console.error('Error closing session:', err);
+      alert('Failed to close session');
     }
   };
 
@@ -208,7 +460,7 @@ export default function Admin() {
         />
       </header>
 
-      <div className="flex-1" style={{ paddingTop: '180px', paddingBottom: '3rem' }}>
+      <div className="flex-1" style={{ paddingTop: '240px', paddingBottom: '3rem' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">
@@ -217,13 +469,24 @@ export default function Admin() {
                 <h1 className="text-4xl font-bold text-gray-900">Admin Dashboard</h1>
                 <p className="mt-2 text-gray-600">Manage products, orders, and inventory</p>
               </div>
-              <button
-                onClick={activeTab === 'products' ? fetchProducts : fetchOrders}
-                className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
-              >
-                <RefreshCw size={18} />
-                Refresh
-              </button>
+              <div className="flex items-center gap-3">
+                {(user?.role === 'admin' || user?.role === 'support') && (
+                  <button
+                    onClick={() => navigate('/support')}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                  >
+                    <ShoppingCart size={18} />
+                    Support Dashboard
+                  </button>
+                )}
+                <button
+                  onClick={activeTab === 'products' ? fetchProducts : activeTab === 'orders' ? fetchOrders : fetchOffers}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+                >
+                  <RefreshCw size={18} />
+                  Refresh
+                </button>
+              </div>
             </div>
           </div>
 
@@ -254,6 +517,32 @@ export default function Admin() {
                 <div className="flex items-center gap-2">
                   <ShoppingCart size={20} />
                   Orders
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('offers')}
+                className={`px-6 py-3 font-semibold transition-colors ${
+                  activeTab === 'offers'
+                    ? 'text-orange-600 border-b-2 border-orange-600'
+                    : 'text-gray-600 hover:text-orange-600'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <TrendingUp size={20} />
+                  Scrolling Offers
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('support')}
+                className={`px-6 py-3 font-semibold transition-colors ${
+                  activeTab === 'support'
+                    ? 'text-orange-600 border-b-2 border-orange-600'
+                    : 'text-gray-600 hover:text-orange-600'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <MessageCircle size={20} />
+                  Customer Support
                 </div>
               </button>
             </div>
@@ -399,13 +688,48 @@ export default function Admin() {
           {/* Orders Section */}
           {!loading && activeTab === 'orders' && (
             <div className="space-y-4">
-              {orders.length === 0 ? (
+              {/* Order Filters */}
+              <div className="bg-white rounded-xl shadow-md p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Status</label>
+                    <select
+                      value={orderFilter}
+                      onChange={(e) => setOrderFilter(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                    >
+                      <option value="all">All Orders</option>
+                      <option value="pending">Pending</option>
+                      <option value="processing">Processing</option>
+                      <option value="shipped">Shipped</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Sort by Time</label>
+                    <select
+                      value={orderSort}
+                      onChange={(e) => setOrderSort(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                    >
+                      <option value="newest">Newest First</option>
+                      <option value="oldest">Oldest First</option>
+                    </select>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mt-3">
+                  Showing {getFilteredOrders().length} of {orders.length} orders
+                </p>
+              </div>
+
+              {getFilteredOrders().length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-xl">
                   <ShoppingCart size={48} className="mx-auto text-gray-400 mb-4" />
-                  <p className="text-gray-600 text-lg">No orders yet</p>
+                  <p className="text-gray-600 text-lg">No orders found</p>
                 </div>
               ) : (
-                orders.map((order) => {
+                getFilteredOrders().map((order) => {
                   const statusInfo = getOrderStatusColor(order.status);
                   const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
                     year: 'numeric',
@@ -533,6 +857,343 @@ export default function Admin() {
                   );
                 })
               )}
+            </div>
+          )}
+
+          {/* Offers Section */}
+          {!loading && activeTab === 'offers' && (
+            <div className="space-y-6">
+              {/* Create New Offer */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Create New Offer</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Offer Text</label>
+                    <input
+                      type="text"
+                      value={newOffer.text}
+                      onChange={(e) => setNewOffer({ ...newOffer, text: e.target.value })}
+                      placeholder="e.g., FREE SHIPPING ON ORDERS OVER $50"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Icon/Emoji</label>
+                    <input
+                      type="text"
+                      value={newOffer.icon}
+                      onChange={(e) => setNewOffer({ ...newOffer, icon: e.target.value })}
+                      placeholder="🎉"
+                      maxLength={10}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      onClick={handleCreateOffer}
+                      disabled={saving || !newOffer.text.trim()}
+                      className="w-full px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Add Offer
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Existing Offers */}
+              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="bg-gradient-to-r from-orange-500 to-yellow-500 px-6 py-4">
+                  <h3 className="text-xl font-bold text-white">Manage Scrolling Offers</h3>
+                  <p className="text-orange-100 text-sm">Total: {offers.length} offers</p>
+                </div>
+                <div className="p-6">
+                  {offers.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No offers yet. Create your first offer above!
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {offers.map((offer) => (
+                        <div
+                          key={offer.id}
+                          className={`border-2 rounded-lg p-4 transition-all ${
+                            offer.is_active ? 'border-green-300 bg-green-50' : 'border-gray-300 bg-gray-50'
+                          }`}
+                        >
+                          {editingOffer?.id === offer.id ? (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                <div className="md:col-span-2">
+                                  <input
+                                    type="text"
+                                    value={editingOffer.text}
+                                    onChange={(e) => setEditingOffer({ ...editingOffer, text: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                  />
+                                </div>
+                                <div>
+                                  <input
+                                    type="text"
+                                    value={editingOffer.icon}
+                                    onChange={(e) => setEditingOffer({ ...editingOffer, icon: e.target.value })}
+                                    maxLength={10}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                  />
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleUpdateOffer(offer.id, editingOffer)}
+                                    disabled={saving}
+                                    className="flex-1 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm disabled:opacity-50"
+                                  >
+                                    <Save size={16} className="inline mr-1" />
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingOffer(null)}
+                                    disabled={saving}
+                                    className="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm disabled:opacity-50"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3 flex-1">
+                                <span className="text-2xl">{offer.icon}</span>
+                                <span className={`font-medium ${offer.is_active ? 'text-gray-900' : 'text-gray-500'}`}>
+                                  {offer.text}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                  offer.is_active 
+                                    ? 'bg-green-100 text-green-700' 
+                                    : 'bg-gray-200 text-gray-600'
+                                }`}>
+                                  {offer.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                                <button
+                                  onClick={() => setEditingOffer({ ...offer })}
+                                  className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm transition-colors"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleToggleOffer(offer.id)}
+                                  disabled={saving}
+                                  className={`px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-50 ${
+                                    offer.is_active
+                                      ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                                      : 'bg-green-500 hover:bg-green-600 text-white'
+                                  }`}
+                                >
+                                  {offer.is_active ? 'Deactivate' : 'Activate'}
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteOffer(offer.id)}
+                                  disabled={saving}
+                                  className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors disabled:opacity-50"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Support Chat Section */}
+          {!loading && activeTab === 'support' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Chat Sessions List */}
+              <div className="lg:col-span-1 bg-white rounded-xl shadow-md">
+                <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-blue-600">
+                  <h3 className="font-bold text-white">Customer Chats ({chatSessions.length})</h3>
+                  <p className="text-xs text-blue-100">Click a chat to view and respond</p>
+                  
+                  {/* Filter Tabs */}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => setChatFilter('active')}
+                      className={`flex-1 px-3 py-1.5 text-sm rounded transition-colors ${
+                        chatFilter === 'active' 
+                          ? 'bg-white text-blue-600 font-semibold' 
+                          : 'bg-blue-600 text-blue-100 hover:bg-blue-700'
+                      }`}
+                    >
+                      Active Chats
+                    </button>
+                    <button
+                      onClick={() => setChatFilter('closed')}
+                      className={`flex-1 px-3 py-1.5 text-sm rounded transition-colors ${
+                        chatFilter === 'closed' 
+                          ? 'bg-white text-blue-600 font-semibold' 
+                          : 'bg-blue-600 text-blue-100 hover:bg-blue-700'
+                      }`}
+                    >
+                      Closed
+                    </button>
+                  </div>
+                </div>
+                <div className="overflow-y-auto" style={{ maxHeight: '600px' }}>
+                  {chatSessions.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <MessageCircle size={48} className="mx-auto mb-3 text-gray-300" />
+                      <p>No {chatFilter} chats</p>
+                    </div>
+                  ) : (
+                    chatSessions.map(session => (
+                      <div
+                        key={session.id}
+                        onClick={() => setSelectedSession(session)}
+                        className={`p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors ${
+                          selectedSession?.id === session.id ? 'bg-orange-50 border-l-4 border-l-orange-500' : ''
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="font-semibold text-gray-900">
+                            {session.customer_display_name || session.customer_name || 'Guest'}
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            session.status === 'waiting' ? 'bg-yellow-100 text-yellow-800' :
+                            session.status === 'active' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {session.status}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600 mb-1 line-clamp-1">{session.subject}</div>
+                        {session.customer_email && (
+                          <div className="text-xs text-gray-500">{session.customer_email}</div>
+                        )}
+                        {session.unread_count > 0 && (
+                          <div className="mt-2">
+                            <span className="inline-block px-2 py-1 bg-red-500 text-white text-xs rounded-full">
+                              {session.unread_count} new
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Chat Messages */}
+              <div className="lg:col-span-2 bg-white rounded-xl shadow-md flex flex-col" style={{ height: '500px' }}>
+                {!selectedSession ? (
+                  <div className="flex-1 flex items-center justify-center text-gray-500">
+                    <div className="text-center">
+                      <MessageCircle size={64} className="mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-semibold mb-2">Select a customer chat</p>
+                      <p className="text-sm">Click on a chat from the left to start responding</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Chat Header */}
+                    <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-t-xl">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-lg">
+                            {selectedSession.customer_display_name || selectedSession.customer_name || 'Guest'}
+                          </div>
+                          <div className="text-sm text-orange-100">{selectedSession.customer_email}</div>
+                          <div className="text-xs text-orange-100">{selectedSession.subject}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Messages Area */}
+                    <div className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-3">
+                      {chatMessages.length === 0 && (
+                        <div className="text-center text-gray-500 py-8">
+                          <p className="mb-2">No messages yet</p>
+                          <p className="text-sm">👈 Customer messages will appear on the left</p>
+                          <p className="text-sm">Your replies will appear on the right 👉</p>
+                        </div>
+                      )}
+                      {chatMessages.map((msg, idx) => (
+                        <div
+                          key={msg.id || idx}
+                          className={`flex ${msg.sender_type === 'agent' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`max-w-[70%] rounded-lg p-3 ${
+                              msg.sender_type === 'agent'
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-blue-100 border-2 border-blue-300 text-gray-900'
+                            }`}
+                          >
+                            {msg.sender_name && (
+                              <div className={`text-xs font-semibold mb-1 ${
+                                msg.sender_type === 'agent' ? 'text-orange-100' : 'text-blue-700'
+                              }`}>
+                                {msg.sender_type === 'customer' ? '👤 ' : '🎧 '}{msg.sender_name}
+                              </div>
+                            )}
+                            <div className="text-sm">{msg.message}</div>
+                            <div className={`text-xs mt-1 ${
+                              msg.sender_type === 'agent' ? 'text-orange-100' : 'text-blue-600'
+                            }`}>
+                              {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Message Input */}
+                    {selectedSession.status !== 'closed' ? (
+                      <div className="p-4 border-t border-gray-200 bg-white rounded-b-xl">
+                        <div className="mb-2 text-xs text-gray-500 flex items-center justify-between">
+                          <span>💬 Reply to {selectedSession.customer_display_name || selectedSession.customer_name || 'customer'}</span>
+                          <span className="text-green-600">● Online</span>
+                        </div>
+                        <div className="flex gap-2 mb-2">
+                          <input
+                            type="text"
+                            value={newChatMessage}
+                            onChange={(e) => setNewChatMessage(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
+                            placeholder="Type your reply and press Enter..."
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          />
+                          <button
+                            onClick={sendChatMessage}
+                            disabled={!newChatMessage.trim()}
+                            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-2"
+                          >
+                            <Send size={20} />
+                            Send
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => closeChatSession(selectedSession.id)}
+                          className="w-full text-sm text-red-600 hover:text-red-700 font-medium py-2 hover:bg-red-50 rounded transition-colors"
+                        >
+                          Close Chat Session
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                        <div className="text-center text-gray-600 py-3">
+                          <span className="text-sm font-medium">🔒 This chat session is closed</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>

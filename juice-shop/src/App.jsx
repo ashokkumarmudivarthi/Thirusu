@@ -9,7 +9,9 @@ import Signup from './pages/Signup'
 import Profile from './pages/Profile'
 import MyOrders from './pages/MyOrders'
 import Wishlist from './pages/Wishlist'
+import ChatHistory from './pages/ChatHistory'
 import Admin from './pages/Admin'
+import Support from './pages/Support'
 
 function App() {
   return (
@@ -24,7 +26,9 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/my-orders" element={<MyOrders />} />
         <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="/chat-history" element={<ChatHistory />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/support" element={<Support />} />
       </Routes>
     </Layout>
   )
