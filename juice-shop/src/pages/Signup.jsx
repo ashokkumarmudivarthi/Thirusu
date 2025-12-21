@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import emailjs from '@emailjs/browser';
 import Navbar from '../components/Navbar';
 import TopScroll from '../sections/TopScroll';
 import Footer from '../components/Footer';
@@ -66,11 +67,32 @@ export default function Signup() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      signup(formData.name, formData.email, formData.password);
-      navigate('/', { replace: true });
+      try {
+        // Signup user first
+        await signup(formData.name, formData.email, formData.password);
+        
+        // Send welcome email via EmailJS
+        await emailjs.send(
+          'service_ie2l1kg',    // Your EmailJS Service ID
+          'template_welcome',   // EmailJS Template ID for welcome email
+          {
+            to_email: formData.email,
+            to_name: formData.name,
+            from_name: 'ThiruSu Juice Shop'
+          },
+          '_wCy461WHzxRVNDAm'   // Your EmailJS Public Key
+        );
+        
+        console.log('✅ Welcome email sent successfully!');
+        navigate('/', { replace: true });
+      } catch (error) {
+        console.error('❌ Error sending welcome email:', error);
+        // Still navigate even if email fails
+        navigate('/', { replace: true });
+      }
     }
   };
 

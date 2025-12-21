@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import emailjs from '@emailjs/browser';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -13,16 +14,37 @@ const ForgotPassword = () => {
     setMessage({ type: '', text: '' });
 
     try {
+      // Step 1: Generate reset token from backend
       const response = await axios.post('http://localhost:5000/api/auth/forgot-password', {
         email
       });
 
+      // Step 2: Send password reset email via EmailJS
+      if (response.data.resetToken && response.data.user) {
+        const resetUrl = `http://localhost:5173/reset-password?token=${response.data.resetToken}`;
+        
+        await emailjs.send(
+          'service_ie2l1kg',    // Your EmailJS Service ID
+          'template_7x5i2ei',   // Your EmailJS Template ID
+          {
+            to_email: email,
+            to_name: response.data.user.name || 'User',
+            reset_link: resetUrl,
+            from_name: 'ThiruSu Juice Shop'
+          },
+          '_wCy461WHzxRVNDAm'   // Your EmailJS Public Key
+        );
+        
+        console.log('✅ Password reset email sent successfully!');
+      }
+
       setMessage({ 
         type: 'success', 
-        text: response.data.message 
+        text: 'Password reset link has been sent to your email!' 
       });
       setEmail('');
     } catch (error) {
+      console.error('❌ Error:', error);
       setMessage({ 
         type: 'error', 
         text: error.response?.data?.error || 'Failed to send reset email. Please try again.' 

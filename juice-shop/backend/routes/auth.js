@@ -166,13 +166,16 @@ router.post('/forgot-password', async (req, res) => {
       [user.id, hashedToken, expiresAt]
     );
 
-    // Send email with plain token (not hashed)
-    sendPasswordResetEmail(user.email, user.name, resetToken).catch(err => 
-      console.error('Reset email failed:', err.message)
-    );
-
+    // Send email with plain token (not hashed) - backend no longer sends emails
+    // Frontend will handle email sending via EmailJS
+    
     res.json({ 
-      message: 'If an account exists with this email, you will receive a password reset link.' 
+      message: 'If an account exists with this email, you will receive a password reset link.',
+      resetToken: resetToken, // Send token to frontend for EmailJS
+      user: {
+        name: user.name,
+        email: user.email
+      }
     });
   } catch (error) {
     console.error('Forgot password error:', error);

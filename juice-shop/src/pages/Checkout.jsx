@@ -3,6 +3,7 @@ import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { User, Phone, Mail, MapPin, CreditCard, Check, ArrowRight, ArrowLeft } from 'lucide-react'
+import emailjs from '@emailjs/browser'
 import TopScroll from '../sections/TopScroll'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
@@ -235,6 +236,49 @@ export default function Checkout() {
         },
         orderDate: new Date(response.order.created_at).toLocaleDateString(),
         status: response.order.status
+      }
+
+      // Send order confirmation email via EmailJS
+      try {
+        // Format order items for email template (matching EmailJS template structure)
+        const ordersForEmail = cartItems.map(item => ({
+          name: item.name,
+          units: item.quantity,
+          price: (item.price * item.quantity).toFixed(2),
+          image_url: item.image || 'https://via.placeholder.com/64'
+        }));
+
+        await emailjs.send(
+          'service_ie2l1kg',    // Your EmailJS Service ID
+          'template_t67u4rg',   // Order Confirmation Template ID
+          {
+            email: formData.email,
+            to_email: formData.email,
+            customer_name: formData.fullName,
+            order_id: response.order.order_number,
+            order_number: response.order.order_number,
+            order_date: new Date(response.order.created_at).toLocaleDateString(),
+            order_status: response.order.status,
+            orders: ordersForEmail,
+            cost: {
+              shipping: shippingFee.toFixed(2),
+              tax: tax.toFixed(2),
+              total: finalTotal.toFixed(2)
+            },
+            subtotal: cartTotal.toFixed(2),
+            shipping_fee: shippingFee.toFixed(2),
+            tax: tax.toFixed(2),
+            total_amount: finalTotal.toFixed(2),
+            delivery_address: `${formData.fullName}\n${formData.phone}\n${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`,
+            payment_method: selectedPaymentMethod || 'Cash on Delivery'
+          },
+          '_wCy461WHzxRVNDAm'   // Your EmailJS Public Key
+        );
+        
+        console.log('✅ Order confirmation email sent successfully!');
+      } catch (emailError) {
+        console.error('❌ Failed to send order confirmation email:', emailError);
+        // Don't block order completion if email fails
       }
 
       clearCart()
