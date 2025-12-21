@@ -43,6 +43,12 @@ export default function Checkout() {
 
   const [errors, setErrors] = useState({})
   const [isProcessing, setIsProcessing] = useState(false)
+  
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState(null)
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [couponError, setCouponError] = useState('')
 
   // Initialize map location to Chennai by default
   useEffect(() => {
@@ -191,8 +197,10 @@ export default function Checkout() {
 
       // Calculate totals
       const shippingFee = cartTotal > 4000 ? 0 : 99
-      const tax = cartTotal * 0.08
-      const finalTotal = cartTotal + shippingFee + tax
+      const discount = appliedCoupon ? appliedCoupon.discount_amount : 0
+      const subtotalAfterDiscount = cartTotal - discount
+      const tax = subtotalAfterDiscount * 0.08
+      const finalTotal = subtotalAfterDiscount + shippingFee + tax
 
       // Create order in backend (this will deduct stock automatically)
       const orderData = {
@@ -248,9 +256,51 @@ export default function Checkout() {
     }
   }
 
+  // Apply coupon discount
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Please enter a coupon code')
+      return
+    }
+    
+    setCouponLoading(true)
+    setCouponError('')
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode, orderValue: cartTotal })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        setAppliedCoupon(data.coupon)
+        setCouponError('')
+      } else {
+        setCouponError(data.error || 'Invalid coupon code')
+        setAppliedCoupon(null)
+      }
+    } catch (error) {
+      setCouponError('Failed to apply coupon')
+      setAppliedCoupon(null)
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+  
+  const removeCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponCode('')
+    setCouponError('')
+  }
+
   const shippingFee = cartTotal > 4000 ? 0 : 99
-  const tax = cartTotal * 0.08
-  const finalTotal = cartTotal + shippingFee + tax
+  const discount = appliedCoupon ? appliedCoupon.discount_amount : 0
+  const subtotalAfterDiscount = cartTotal - discount
+  const tax = subtotalAfterDiscount * 0.08
+  const finalTotal = subtotalAfterDiscount + shippingFee + tax
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pink-50">
@@ -722,12 +772,66 @@ export default function Checkout() {
                 {/* Divider */}
                 <div className="border-t border-gray-300 my-6"></div>
 
+                {/* Coupon Code */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Have a coupon code?
+                  </label>
+                  {!appliedCoupon ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                        placeholder="Enter code"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={applyCoupon}
+                        disabled={couponLoading}
+                        className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium disabled:opacity-50"
+                      >
+                        {couponLoading ? 'Applying...' : 'Apply'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div>
+                        <p className="text-sm font-semibold text-green-800">{appliedCoupon.code}</p>
+                        <p className="text-xs text-green-600">{appliedCoupon.description}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={removeCoupon}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  {couponError && (
+                    <p className="text-xs text-red-600">{couponError}</p>
+                  )}
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-gray-300 my-6"></div>
+
                 {/* Totals */}
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm text-gray-700">
                     <span>Subtotal</span>
                     <span className="font-medium">₹{Math.round(cartTotal)}</span>
                   </div>
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Discount ({appliedCoupon.code})</span>
+                      <span className="font-medium">-₹{Math.round(discount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm text-gray-700">
                     <span>Shipping</span>
                     <span className="font-medium">

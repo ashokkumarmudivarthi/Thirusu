@@ -133,6 +133,19 @@ const setupDatabase = async () => {
     `);
     console.log('✅ Scrolling Offers table created');
 
+    // Create Password Reset Tokens table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Password Reset Tokens table created');
+
     // Insert default offers if table is empty
     const { rows: existingOffers } = await pool.query('SELECT COUNT(*) FROM scrolling_offers');
     if (parseInt(existingOffers[0].count) === 0) {
@@ -223,6 +236,74 @@ const setupDatabase = async () => {
       console.log('✅ Default predefined queries inserted');
     }
 
+    // Create Addresses table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS addresses (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        label VARCHAR(100),
+        full_name VARCHAR(255) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        address_line1 VARCHAR(255) NOT NULL,
+        address_line2 VARCHAR(255),
+        city VARCHAR(100) NOT NULL,
+        state VARCHAR(100) NOT NULL,
+        postal_code VARCHAR(20) NOT NULL,
+        country VARCHAR(100) DEFAULT 'USA',
+        is_default BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Addresses table created');
+
+    // Create Coupons table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS coupons (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(50) UNIQUE NOT NULL,
+        description TEXT,
+        discount_type VARCHAR(20) NOT NULL,
+        discount_value DECIMAL(10, 2) NOT NULL,
+        min_order_value DECIMAL(10, 2) DEFAULT 0,
+        max_discount DECIMAL(10, 2),
+        usage_limit INTEGER,
+        used_count INTEGER DEFAULT 0,
+        valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        valid_until TIMESTAMP,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Coupons table created');
+
+    // Create Coupon Usage table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS coupon_usage (
+        id SERIAL PRIMARY KEY,
+        coupon_id INTEGER REFERENCES coupons(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id),
+        order_id INTEGER REFERENCES orders(id),
+        discount_amount DECIMAL(10, 2) NOT NULL,
+        used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Coupon Usage table created');
+
+    // Insert default coupons
+    const { rows: existingCoupons } = await pool.query('SELECT COUNT(*) FROM coupons');
+    if (parseInt(existingCoupons[0].count) === 0) {
+      await pool.query(`
+        INSERT INTO coupons (code, description, discount_type, discount_value, min_order_value, max_discount, usage_limit, valid_until) VALUES
+        ('WELCOME20', 'Welcome! Get 20% off your first order', 'percentage', 20.00, 30.00, 50.00, 1000, NOW() + INTERVAL '30 days'),
+        ('SAVE10', 'Save $10 on orders over $50', 'fixed', 10.00, 50.00, NULL, NULL, NOW() + INTERVAL '60 days'),
+        ('FRESH25', 'Fresh juice lovers get 25% off', 'percentage', 25.00, 100.00, 75.00, 500, NOW() + INTERVAL '90 days'),
+        ('FREESHIP', 'Free shipping on orders over $40', 'percentage', 100.00, 40.00, 15.00, NULL, NOW() + INTERVAL '180 days');
+      `);
+      console.log('✅ Default coupons inserted');
+    }
+
     // Create indexes for better performance
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -237,6 +318,12 @@ const setupDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_chat_sessions_status ON chat_sessions(status);
       CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
       CREATE INDEX IF NOT EXISTS idx_agent_status_online ON agent_status(is_online);
+      CREATE INDEX IF NOT EXISTS idx_addresses_user ON addresses(user_id);
+      CREATE INDEX IF NOT EXISTS idx_addresses_default ON addresses(is_default);
+      CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(code);
+      CREATE INDEX IF NOT EXISTS idx_coupons_active ON coupons(is_active, valid_until);
+      CREATE INDEX IF NOT EXISTS idx_coupon_usage_coupon ON coupon_usage(coupon_id);
+      CREATE INDEX IF NOT EXISTS idx_coupon_usage_user ON coupon_usage(user_id);
     `);
     console.log('✅ Indexes created');
 

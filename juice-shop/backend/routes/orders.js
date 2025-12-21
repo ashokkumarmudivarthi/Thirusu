@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../config/database.js';
 import { authenticate, authorizeAdmin, optionalAuthenticate } from '../middleware/auth.js';
+import { sendOrderConfirmationEmail, sendOrderStatusEmail } from '../config/email.js';
 
 const router = express.Router();
 
@@ -112,6 +113,24 @@ router.post('/', optionalAuthenticate, async (req, res) => {
 
     // Generate order number
     const orderNumber = `ORD-${orderId.toString().padStart(6, '0')}`;
+
+    // Prepare order data for email
+    const orderForEmail = {
+      id: orderId,
+      order_number: orderNumber,
+      created_at: orderResult.rows[0].created_at,
+      status: 'pending',
+      total_amount: totalAmount,
+      delivery_address: deliveryAddress,
+      items: items
+    };
+
+    // Send order confirmation email (non-blocking)
+    sendOrderConfirmationEmail(
+      customerEmail,
+      customerName,
+      orderForEmail
+    ).catch(err => console.error('Order confirmation email failed:', err.message));
 
     res.status(201).json({
       message: 'Order created successfully',
@@ -252,6 +271,20 @@ router.patch('/admin/:id/status', authenticate, authorizeAdmin, async (req, res)
       return res.status(400).json({ error: 'Invalid status' });
     }
 
+    // Get old status and customer info before updating
+    const orderCheck = await pool.query(
+      'SELECT status, customer_email, customer_name FROM orders WHERE id = $1',
+      [id]
+    );
+
+    if (orderCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const oldStatus = orderCheck.rows[0].status;
+    const customerEmail = orderCheck.rows[0].customer_email;
+    const customerName = orderCheck.rows[0].customer_name;
+
     let query, params;
     if (estimatedDeliveryDate) {
       query = 'UPDATE orders SET status = $1, estimated_delivery_date = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *';
@@ -263,8 +296,16 @@ router.patch('/admin/:id/status', authenticate, authorizeAdmin, async (req, res)
 
     const result = await pool.query(query, params);
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Order not found' });
+    // Send status update email if status changed (non-blocking)
+    if (oldStatus !== status && customerEmail) {
+      const orderNumber = `ORD-${id.toString().padStart(6, '0')}`;
+      sendOrderStatusEmail(
+        customerEmail,
+        customerName,
+        orderNumber,
+        oldStatus,
+        status
+      ).catch(err => console.error('Status update email failed:', err.message));
     }
 
     res.json({ message: 'Order status updated', order: result.rows[0] });

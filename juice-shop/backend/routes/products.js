@@ -4,10 +4,82 @@ import { authenticate, authorizeAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get all products with stock information
+// Get all products with stock information, search, filters, and sorting
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query(`
+    const {
+      search,
+      category,
+      minPrice,
+      maxPrice,
+      inStockOnly,
+      sortBy = 'id', // id, name, price_low, price_high, newest
+      limit = 100,
+      offset = 0
+    } = req.query;
+
+    let whereConditions = ['p.is_active = true'];
+    let queryParams = [];
+    let paramIndex = 1;
+
+    // Search by name or description
+    if (search) {
+      whereConditions.push(`(LOWER(p.name) LIKE $${paramIndex} OR LOWER(p.description) LIKE $${paramIndex})`);
+      queryParams.push(`%${search.toLowerCase()}%`);
+      paramIndex++;
+    }
+
+    // Filter by category
+    if (category && category !== 'all') {
+      whereConditions.push(`LOWER(p.category) = $${paramIndex}`);
+      queryParams.push(category.toLowerCase());
+      paramIndex++;
+    }
+
+    // Filter by price range (using base_price)
+    if (minPrice) {
+      whereConditions.push(`p.base_price >= $${paramIndex}`);
+      queryParams.push(parseFloat(minPrice));
+      paramIndex++;
+    }
+
+    if (maxPrice) {
+      whereConditions.push(`p.base_price <= $${paramIndex}`);
+      queryParams.push(parseFloat(maxPrice));
+      paramIndex++;
+    }
+
+    // Build WHERE clause
+    const whereClause = whereConditions.length > 0 
+      ? 'WHERE ' + whereConditions.join(' AND ')
+      : '';
+
+    // Determine ORDER BY clause
+    let orderByClause;
+    switch (sortBy) {
+      case 'name':
+        orderByClause = 'ORDER BY p.name ASC';
+        break;
+      case 'price_low':
+        orderByClause = 'ORDER BY p.base_price ASC';
+        break;
+      case 'price_high':
+        orderByClause = 'ORDER BY p.base_price DESC';
+        break;
+      case 'newest':
+        orderByClause = 'ORDER BY p.created_at DESC';
+        break;
+      default:
+        orderByClause = 'ORDER BY p.id';
+    }
+
+    // Add LIMIT and OFFSET to params
+    queryParams.push(parseInt(limit));
+    const limitParam = paramIndex++;
+    queryParams.push(parseInt(offset));
+    const offsetParam = paramIndex++;
+
+    const query = `
       SELECT 
         p.id,
         p.name,
@@ -18,6 +90,7 @@ router.get('/', async (req, res) => {
         p.base_price,
         p.image_url,
         p.is_active,
+        p.created_at,
         COALESCE(
           (
             SELECT json_agg(
@@ -49,14 +122,68 @@ router.get('/', async (req, res) => {
           ARRAY[]::text[]
         ) as ingredients
       FROM products p
-      WHERE p.is_active = true
-      ORDER BY p.id
-    `);
+      ${whereClause}
+      ${orderByClause}
+      LIMIT $${limitParam} OFFSET $${offsetParam}
+    `;
 
-    res.json({ products: result.rows });
+    const result = await pool.query(query, queryParams);
+
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM products p
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, queryParams.slice(0, -2)); // Remove limit and offset params
+
+    // Filter out products with no stock if inStockOnly is true
+    let products = result.rows;
+    if (inStockOnly === 'true') {
+      products = products.filter(product => 
+        product.sizes && product.sizes.some(size => size.inStock)
+      );
+    }
+
+    res.json({ 
+      products,
+      total: parseInt(countResult.rows[0].total),
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
   } catch (error) {
     console.error('Get products error:', error);
     res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+// Search suggestions for autocomplete
+router.get('/search/suggestions', async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q || q.length < 2) {
+      return res.json({ suggestions: [] });
+    }
+
+    const result = await pool.query(`
+      SELECT 
+        id,
+        name,
+        category,
+        base_price,
+        image_url
+      FROM products
+      WHERE is_active = true 
+        AND (LOWER(name) LIKE $1 OR LOWER(category) LIKE $1)
+      ORDER BY name ASC
+      LIMIT 10
+    `, [`%${q.toLowerCase()}%`]);
+
+    res.json({ suggestions: result.rows });
+  } catch (error) {
+    console.error('Search suggestions error:', error);
+    res.status(500).json({ error: 'Failed to fetch suggestions' });
   }
 });
 
