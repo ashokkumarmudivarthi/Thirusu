@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import TopScroll from '../sections/TopScroll'
 import Navbar from '../components/Navbar'
-import HeroShowcase from '../sections/HeroShowcase'
+import HeroShowcase from '../sections/HeroShowCase'
 import SectionHero from '../components/SectionHero'
 import ShopCategoryBar from '../sections/ShopCategoryBar'
 import ProductGrid from '../sections/ProductGrid'

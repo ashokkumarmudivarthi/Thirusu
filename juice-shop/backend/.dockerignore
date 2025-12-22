@@ -1,0 +1,28 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Development files
+.git
+.gitignore
+.env.local
+.env.development
+*.md
+README.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test and development
+coverage
+.nyc_output
+test
+tests
+__tests__

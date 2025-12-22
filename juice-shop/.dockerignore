@@ -1,0 +1,38 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Build output
+dist
+build
+
+# Development files
+.git
+.gitignore
+.env.local
+.env.development
+*.md
+README.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android
+android
+
+# Backend (for frontend build)
+backend
+
+# Test and development
+coverage
+.nyc_output
+test
+tests
+__tests__

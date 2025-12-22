@@ -19,13 +19,13 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? 'https://yourdomain.com' 
+  origin: process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',')
     : [
         'http://localhost:5173',
         'http://localhost:5174',
+        'http://localhost',       
         'capacitor://localhost',  // Capacitor iOS
-        'http://localhost',       // Capacitor Android
         'ionic://localhost',      // Ionic
         'http://192.168.1.6:5173' // Mobile development (local IP)
       ],
